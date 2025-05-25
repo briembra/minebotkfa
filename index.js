@@ -1,30 +1,72 @@
 const mineflayer = require('mineflayer');
-const http = require('http');
+const readline = require('readline');
 
-const port = process.env.PORT || 3000;
+// Vul hier je 4 accounts in:
+const accounts = [
+  'mail1@example.com',
+  'mail2@example.com',
+  'mail3@example.com',
+  'mail4@example.com',
+];
 
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('✅ Bot is actief!');
-}).listen(port, () => {
-  console.log(`Webserver draait op poort ${port}`);
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
 });
 
-function createBot() {
-  const bot = mineflayer.createBot({
-    host: 'donutsmp.net',
-    port: 25565,
-    auth: 'microsoft',
-    username: 'familiatejosurqueta@hotmail.com',  // Vervang met jouw echte email!
-    version: '1.20.4'
-  });
+let bots = [];
+let loggedInCount = 0;
 
-  bot.on('login', () => console.log('✅ Bot ingelogd!'));
-  bot.on('end', () => {
-    console.log('Bot gestopt, ik probeer opnieuw over 30s...');
-    setTimeout(createBot, 30000);
+function createBot(email, index) {
+  return new Promise((resolve, reject) => {
+    console.log(`📧 Log in op account #${index + 1}: ${email}`);
+
+    const bot = mineflayer.createBot({
+      host: 'donutsmp.net',
+      port: 25565,
+      auth: 'microsoft',
+      username: email,
+      version: '1.20.4',
+    });
+
+    bot.on('login', () => {
+      console.log(`✅ Account #${index + 1} (${email}) is ingelogd op Donut SMP!`);
+      bots.push(bot);
+      resolve();
+    });
+
+    bot.on('error', err => {
+      console.error(`⚠️ Fout bij account #${index + 1} (${email}):`, err.message);
+      reject(err);
+    });
+
+    bot.on('end', () => {
+      console.log(`❌ Account #${index + 1} (${email}) is uitgelogd.`);
+    });
   });
-  bot.on('error', err => console.log('Fout:', err));
 }
 
-createBot();
+async function startBots(aantal) {
+  for (let i = 0; i < aantal; i++) {
+    try {
+      await createBot(accounts[i], i);
+    } catch (err) {
+      console.log('Probeer opnieuw met hetzelfde account of andere account.');
+    }
+  }
+  console.log('\n🎉 Alle gekozen accounts zijn ingelogd!');
+  bots.forEach((bot, i) => {
+    console.log(`- Account #${i + 1} (${accounts[i]}) is online op Donut SMP.`);
+  });
+  rl.close();
+}
+
+rl.question('Hoeveel accounts wil je gebruiken? (1 t/m 4) ', (answer) => {
+  const aantal = parseInt(answer);
+  if (aantal >= 1 && aantal <= 4) {
+    startBots(aantal);
+  } else {
+    console.log('Voer een getal tussen 1 en 4 in.');
+    rl.close();
+  }
+});
