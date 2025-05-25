@@ -3,10 +3,10 @@ const readline = require('readline');
 
 // Vul hier je 4 accounts in:
 const accounts = [
-  'mail1@example.com',
-  'mail2@example.com',
-  'mail3@example.com',
-  'mail4@example.com',
+  'runnerbean83@hotmail.com',
+  'familiatejosurqueta@hotmail.com',
+  'luisinhobebelindo@gmail.com',
+  'qwe7417890922@hotmail.com',
 ];
 
 const rl = readline.createInterface({
