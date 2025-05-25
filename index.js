@@ -1,13 +1,14 @@
 const mineflayer = require('mineflayer');
 
 const accounts = [
-  'runnerbean83@hotmail.com',
-  'familiatejosurqueta@hotmail.com',
-  'luisinhobebelindo@gmail.com',
-  'duduiss1@gmail.com',
-  'melanie81485@outlook.com',
-  'qwe7417890922@hotmail.com'
+  'sbanciutarau@gmail.com',
+  'jackson.emmylou@yahoo.com',
+  'flaviajaenicke@hotmail.com',
+  'ajnd2334@outlook.com',
+  'meatloafshaw@gmail.com',
+  'luisinhobebelindo@gmail.com' // uit vorige lijst
 ];
+
 
 console.log(`🚀 Start met 6 accounts...`);
 
