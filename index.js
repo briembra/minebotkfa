@@ -3,10 +3,13 @@ const mineflayer = require('mineflayer');
 const accounts = [
   'runnerbean83@hotmail.com',
   'familiatejosurqueta@hotmail.com',
-  'luisinhobebelindo@gmail.com'
+  'luisinhobebelindo@gmail.com',
+  'duduiss1@gmail.com',
+  'melanie81485@outlook.com',
+  'qwe7417890922@hotmail.com'
 ];
 
-console.log(`🚀 Start met 3 accounts...`);
+console.log(`🚀 Start met 6 accounts...`);
 
 function createBot(email, index) {
   const bot = mineflayer.createBot({
