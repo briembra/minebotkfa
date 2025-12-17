@@ -1,42 +1,67 @@
 const mineflayer = require('mineflayer');
 const http = require('http');
 
-// Webserver voor Render (verplicht)
+// --- 1. WEBSERVER VOOR RENDER ---
 const port = process.env.PORT || 10000;
 http.createServer((req, res) => {
-  res.end('Bot Manager is Online');
-}).listen(port);
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('✅ Bot Wacht op Login...');
+}).listen(port, () => {
+  console.log(`Webserver actief op poort ${port}`);
+});
 
-// Haal je e-mails op uit de Render Environment Variable 'ACCOUNTS'
-const accountList = process.env.ACCOUNTS ? process.env.ACCOUNTS.split(',') : ['familiatejosurqueta@hotmail.com'];
-
-function startBot(email) {
-  const cleanEmail = email.trim();
-  console.log(`[${cleanEmail}] Probeert verbinding te maken voor inloglink...`);
+function startBot() {
+  console.log('\n[Systeem] Bezig met genereren van een nieuwe inloglink...');
 
   const bot = mineflayer.createBot({
     host: 'donutsmp.net',
     port: 25565,
     auth: 'microsoft',
-    username: cleanEmail,
-    version: false,
-    // DEZE FUNCTIE STUURT DE LINK NAAR JE CONSOLE:
-    onMsaCode: (data) => {
-      console.log('\n***********************************************');
-      console.log(`[!] INLOGGEN VOOR: ${cleanEmail}`);
-      console.log(`[!] STAP 1: Ga naar https://microsoft.com/link`);
-      console.log(`[!] STAP 2: Voer deze code in: ${data.user_code}`);
-      console.log('***********************************************\n');
+    // We laten 'username' weg of zetten het op een placeholder
+    // Microsoft bepaalt welk account het wordt zodra jij de code invoert
+    version: false, 
+    hideErrors: false,
+    checkTimeoutInterval: 120000
+  });
+
+  // --- DE BELANGRIJKSTE FUNCTIE ---
+  // Deze vangt de inlogcode op van Microsoft
+  bot.on('msa', (data) => {
+    console.log('\n===============================================');
+    console.log(' Gebruik een willekeurig Microsoft account:');
+    console.log(` 1. Ga naar: ${data.verification_uri}`);
+    console.log(` 2. Voer deze code in: ${data.user_code}`);
+    console.log('===============================================\n');
+  });
+
+  bot.on('login', () => {
+    // Zodra je de code hebt ingevoerd, weet de bot wie je bent
+    console.log(`✅ Succesvol ingelogd als: ${bot.username}`);
+  });
+
+  bot.on('spawn', () => {
+    console.log(`🎮 Bot [${bot.username}] is nu op de server!`);
+    // Anti-AFK
+    setInterval(() => {
+      if (bot.entity) {
+        bot.setControlState('jump', true);
+        setTimeout(() => bot.setControlState('jump', false), 500);
+      }
+    }, 60000);
+  });
+
+  bot.on('error', (err) => {
+    console.log(`❌ Fout: ${err.message}`);
+    if (err.message.includes('socketClosed')) {
+       console.log('Tip: De server weigerde de verbinding. Probeer het over een minuutje weer.');
     }
   });
 
-  bot.on('login', () => console.log(`✅ [${cleanEmail}] Succesvol ingelogd!`));
-  bot.on('spawn', () => console.log(`🎮 [${cleanEmail}] Is nu op de server.`));
-  bot.on('error', (err) => console.log(`❌ [${cleanEmail}] Fout: ${err.message}`));
-  bot.on('end', () => setTimeout(() => startBot(cleanEmail), 30000));
+  bot.on('end', (reason) => {
+    console.log(`⚠️ Verbinding gestopt (${reason}). Herstarten over 30s...`);
+    setTimeout(startBot, 30000);
+  });
 }
 
-// Start de eerste bot direct
-accountList.forEach((email, index) => {
-  setTimeout(() => startBot(email), index * 20000);
-});
+// Start het proces
+startBot();
