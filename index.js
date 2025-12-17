@@ -1,65 +1,51 @@
 const mineflayer = require('mineflayer');
 const http = require('http');
 
-const emails = [
-  'runnerbean83@hotmail.com',
-  'familiatejosurqueta@hotmail.com',
-  'luisinhobebelindo@gmail.com',
-  'nanaweru@hotmail.com',
-  'michaela.olivera@live.com',
-  'phillipzuniga2001@gmail.com'
-];
+// Render gebruikt de PORT om te zien of de bot leeft
+const port = process.env.PORT || 3000;
 
-const lastShardCounts = {};
+// Webserver om de bot 24/7 online te houden via een pinger
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('✅ DonutBot is online en actief!');
+}).listen(port, () => {
+  console.log(`Webserver draait op poort ${port}`);
+});
 
-function createBot(email, index) {
+function createBot() {
   const bot = mineflayer.createBot({
     host: 'donutsmp.net',
     port: 25565,
     auth: 'microsoft',
-    username: email,
+    // Gebruikt de 'Environment Variable' die je in Render instelt
+    username: process.env.MC_USERNAME || 'JOUW_EMAIL_HIER', 
     version: '1.20.4'
   });
 
   bot.on('login', () => {
-    console.log(`✅ [${index}] Ingelogd als: ${bot.username}`);
+    console.log('✅ Bot succesvol ingelogd op DonutSMP!');
   });
 
-  bot.on('end', () => {
-    console.log(`🔁 [${index}] ${bot.username || email} is offline. Herstart over 60 seconden...`);
-    setTimeout(() => createBot(email, index), 60000);
+  bot.on('spawn', () => {
+    console.log('In-game gespawned!');
   });
 
-  bot.on('kicked', (reason) => {
-    console.log(`⛔ [${index}] Gekickt (${bot.username || email}): ${reason}`);
+  bot.on('end', (reason) => {
+    console.log(`Bot verbinding verbroken (${reason}), ik probeer opnieuw over 30s...`);
+    setTimeout(createBot, 30000);
   });
 
   bot.on('error', (err) => {
-    console.log(`⚠️ [${index}] Fout bij ${email}: ${err}`);
+    console.log('Fout opgetreden:', err);
   });
 
-  bot.on('scoreboardTitleChanged', () => updateShards(bot, index));
-  bot.on('scoreboardScoreChanged', () => updateShards(bot, index));
-}
-
-function updateShards(bot, index) {
-  if (!bot.scoreboard || !bot.scoreboard.scores) return;
-  const scores = bot.scoreboard.scores;
-  for (const score of Object.values(scores)) {
-    if (score.name.toLowerCase().includes('shards')) {
-      lastShardCounts[bot.username] = score.name + ': ' + score.value;
-      console.log(`💎 [${index}] ${bot.username} - ${lastShardCounts[bot.username]}`);
+  // Voorkom dat de bot gekickt wordt voor AFK (simpele beweging)
+  bot.on('chat', (username, message) => {
+    if (username === bot.username) return;
+    if (message === '!ping') {
+      bot.chat('Pong! Ik ben online.');
     }
-  }
+  });
 }
 
-// Start bots
-emails.forEach((email, i) => createBot(email, i + 1));
-
-// Webserver voor 24/7 uptime services (zoals UptimeRobot)
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('✅ Bot is actief');
-}).listen(3000, () => {
-  console.log('🌐 Webserver draait op poort 3000');
-});
+createBot();
