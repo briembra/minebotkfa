@@ -1,82 +1,69 @@
 const mineflayer = require('mineflayer');
 const http = require('http');
 
-// --- 1. WEBSERVER VOOR RENDER (OM ONLINE TE BLIJVEN) ---
-const port = process.env.PORT || 3000;
+// --- 1. WEBSERVER VOOR RENDER ---
+const port = process.env.PORT || 10000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('✅ DonutBot is online!');
+  res.end('✅ Bot Manager is online!');
 }).listen(port, () => {
-  console.log(`Webserver actief op poort ${port}. Gebruik deze URL voor Cron-job.org`);
+  console.log(`Webserver draait op poort ${port}`);
 });
 
-// --- 2. DE MINECRAFT BOT CONFIGURATIE ---
-function createBot() {
-  console.log('Poging tot inloggen...');
+// --- 2. JE ACCOUNTS ---
+// Voeg hier simpelweg meer e-mails toe tussen de [ ]
+const accounts = [
+  process.env.MC_USERNAME_1 || 'email1@hotmail.com',
+  process.env.MC_USERNAME_2 || 'email2@hotmail.com' 
+];
+
+const bots = {};
+
+function startBot(email) {
+  console.log(`\n--- Opstarten: ${email} ---`);
 
   const bot = mineflayer.createBot({
     host: 'donutsmp.net',
     port: 25565,
     auth: 'microsoft',
-    // Gebruik process.env op Render, of vervang hieronder direct voor lokaal testen:
-    username: process.env.MC_USERNAME || 'familiatejosurqueta@hotmail.com',
-    version: '1.20.4', // Pas aan als de server een andere versie gebruikt
-    hideErrors: true,
-    checkTimeoutInterval: 90000 // Langer wachten bij drukke servers
+    username: email,
+    version: false, // Automatische versie detectie
+    hideErrors: true
   });
 
-  // --- 3. BOT EVENTS (GEBEURTENISSEN) ---
+  // Microsoft Login Link opvangen
+  bot.on('msa', (data) => {
+    console.log(`\n[!] ACTIE VEREIST voor ${email}:`);
+    console.log(`[!] Ga naar: https://microsoft.com/link`);
+    console.log(`[!] Voer deze code in: ${data.user_code}\n`);
+  });
 
   bot.on('login', () => {
-    console.log('✅ Bot is ingelogd bij Microsoft!');
+    console.log(`✅ [${email}] Succesvol ingelogd!`);
   });
 
   bot.on('spawn', () => {
-    console.log('🎮 Bot is gespawned in de server!');
-    bot.chat('/home'); // Optioneel: ga direct naar je home als dat nodig is
-  });
-
-  // Anti-AFK: Laat de bot elke 60 seconden een klein beetje bewegen
-  setInterval(() => {
-    if (bot.entity) {
-      bot.setControlState('jump', true);
-      setTimeout(() => bot.setControlState('jump', false), 500);
-    }
-  }, 60000);
-
-  // Reconnect systeem: Als de verbinding verbreekt, probeer het na 30 sec opnieuw
-  bot.on('end', (reason) => {
-    console.log(`⚠️ Verbinding verbroken: ${reason}. Nieuwe poging over 30 seconden...`);
-    setTimeout(createBot, 30000);
+    console.log(`🎮 [${email}] In-game gespawned!`);
+    bot.chat('DonutBot is present!');
   });
 
   bot.on('error', (err) => {
-    if (err.code === 'ECONNREFUSED') {
-      console.log(`❌ Kan niet verbinden met de host: ${err.address}`);
-    } else {
-      console.log(`Foutmelding: ${err}`);
-    }
+    console.log(`❌ [${email}] Fout: ${err.message}`);
   });
 
-  // Reageer op chat commando's (voor testen)
-  bot.on('chat', (username, message) => {
-    if (username === bot.username) return;
-    if (message === '!status') {
-      bot.chat('Ik ben 24/7 online op Render!');
-    }
+  bot.on('end', (reason) => {
+    console.log(`⚠️ [${email}] Verbinding verbroken: ${reason}. Herstart over 30s...`);
+    setTimeout(() => startBot(email), 30000);
   });
+
+  bots[email] = bot;
 }
 
-// Start de bot voor de eerste keer
-createBot();
-
-// --- 4. ZELF-PING (OPTIONEEL) ---
-// Vervang 'JOUWAPPNAAM' door de naam die je op Render hebt gekozen
-const RENDER_URL = `https://JOUWAPPNAAM.onrender.com`; 
-setInterval(() => {
-  http.get(RENDER_URL, (res) => {
-    console.log('Zelf-ping uitgevoerd');
-  }).on('error', (err) => {
-    console.log('Zelf-ping mislukt');
-  });
-}, 800000); // Elke 13 minuten
+// Start alle accounts uit de lijst
+accounts.forEach((email, index) => {
+  // We voegen een kleine vertraging toe tussen het opstarten van accounts 
+  // om te voorkomen dat Microsoft je tijdelijk blokkeert (rate limit).
+  setTimeout(() => {
+    startBot(email);
+  }, index * 10000); 
+});
