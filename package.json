@@ -1,6 +1,7 @@
 {
-  "name": "donut-bot",
-  "version": "1.0.0",
+  "name": "donut-bot-24-7",
+  "version": "1.1.0",
+  "description": "24/7 Minecraft bot voor DonutSMP",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
