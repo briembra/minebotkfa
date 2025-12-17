@@ -1,51 +1,82 @@
 const mineflayer = require('mineflayer');
 const http = require('http');
 
-// Render gebruikt de PORT om te zien of de bot leeft
+// --- 1. WEBSERVER VOOR RENDER (OM ONLINE TE BLIJVEN) ---
 const port = process.env.PORT || 3000;
-
-// Webserver om de bot 24/7 online te houden via een pinger
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('✅ DonutBot is online en actief!');
+  res.end('✅ DonutBot is online!');
 }).listen(port, () => {
-  console.log(`Webserver draait op poort ${port}`);
+  console.log(`Webserver actief op poort ${port}. Gebruik deze URL voor Cron-job.org`);
 });
 
+// --- 2. DE MINECRAFT BOT CONFIGURATIE ---
 function createBot() {
+  console.log('Poging tot inloggen...');
+
   const bot = mineflayer.createBot({
     host: 'donutsmp.net',
     port: 25565,
     auth: 'microsoft',
-    // Gebruikt de 'Environment Variable' die je in Render instelt
-    username: process.env.MC_USERNAME || 'JOUW_EMAIL_HIER', 
-    version: '1.20.4'
+    // Gebruik process.env op Render, of vervang hieronder direct voor lokaal testen:
+    username: process.env.MC_USERNAME || 'familiatejosurqueta@hotmail.com',
+    version: '1.20.4', // Pas aan als de server een andere versie gebruikt
+    hideErrors: true,
+    checkTimeoutInterval: 90000 // Langer wachten bij drukke servers
   });
 
+  // --- 3. BOT EVENTS (GEBEURTENISSEN) ---
+
   bot.on('login', () => {
-    console.log('✅ Bot succesvol ingelogd op DonutSMP!');
+    console.log('✅ Bot is ingelogd bij Microsoft!');
   });
 
   bot.on('spawn', () => {
-    console.log('In-game gespawned!');
+    console.log('🎮 Bot is gespawned in de server!');
+    bot.chat('/home'); // Optioneel: ga direct naar je home als dat nodig is
   });
 
+  // Anti-AFK: Laat de bot elke 60 seconden een klein beetje bewegen
+  setInterval(() => {
+    if (bot.entity) {
+      bot.setControlState('jump', true);
+      setTimeout(() => bot.setControlState('jump', false), 500);
+    }
+  }, 60000);
+
+  // Reconnect systeem: Als de verbinding verbreekt, probeer het na 30 sec opnieuw
   bot.on('end', (reason) => {
-    console.log(`Bot verbinding verbroken (${reason}), ik probeer opnieuw over 30s...`);
+    console.log(`⚠️ Verbinding verbroken: ${reason}. Nieuwe poging over 30 seconden...`);
     setTimeout(createBot, 30000);
   });
 
   bot.on('error', (err) => {
-    console.log('Fout opgetreden:', err);
+    if (err.code === 'ECONNREFUSED') {
+      console.log(`❌ Kan niet verbinden met de host: ${err.address}`);
+    } else {
+      console.log(`Foutmelding: ${err}`);
+    }
   });
 
-  // Voorkom dat de bot gekickt wordt voor AFK (simpele beweging)
+  // Reageer op chat commando's (voor testen)
   bot.on('chat', (username, message) => {
     if (username === bot.username) return;
-    if (message === '!ping') {
-      bot.chat('Pong! Ik ben online.');
+    if (message === '!status') {
+      bot.chat('Ik ben 24/7 online op Render!');
     }
   });
 }
 
+// Start de bot voor de eerste keer
 createBot();
+
+// --- 4. ZELF-PING (OPTIONEEL) ---
+// Vervang 'JOUWAPPNAAM' door de naam die je op Render hebt gekozen
+const RENDER_URL = `https://JOUWAPPNAAM.onrender.com`; 
+setInterval(() => {
+  http.get(RENDER_URL, (res) => {
+    console.log('Zelf-ping uitgevoerd');
+  }).on('error', (err) => {
+    console.log('Zelf-ping mislukt');
+  });
+}, 800000); // Elke 13 minuten
