@@ -6,73 +6,71 @@ const port = process.env.PORT || 10000;
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   const botCount = Object.keys(bots).length;
-  res.end(`✅ Bot Manager is online! Actieve bots: ${botCount}`);
+  res.end(`Bot Manager Status: Online. Actieve bots: ${botCount}`);
 }).listen(port, () => {
-  console.log(`Webserver draait op poort ${port}`);
+  console.log(`Webserver actief op poort ${port}`);
 });
 
-// --- 2. ACCOUNTS LADEN ---
-// We halen de lijst op uit de "ACCOUNTS" variabele op Render (gescheiden door komma's)
 const accountList = process.env.ACCOUNTS ? process.env.ACCOUNTS.split(',') : [];
-
-if (accountList.length === 0) {
-  console.log("❌ GEEN ACCOUNTS GEVONDEN! Voeg de 'ACCOUNTS' variabele toe op Render.");
-}
-
 const bots = {};
 
 function startBot(email) {
-  const cleanEmail = email.trim(); // Haal spaties weg
+  const cleanEmail = email.trim();
   if (!cleanEmail) return;
 
-  console.log(`\n--- Opstarten: ${cleanEmail} ---`);
+  console.log(`\n--- [${cleanEmail}] Inloggen op DonutSMP... ---`);
 
   const bot = mineflayer.createBot({
     host: 'donutsmp.net',
     port: 25565,
     auth: 'microsoft',
     username: cleanEmail,
-    version: false,
+    version: false, // Laat de bot zelf onderhandelen met de server
     hideErrors: true,
-    checkTimeoutInterval: 90000
+    checkTimeoutInterval: 120000, // Verhoogd naar 2 minuten voor trage verbindingen
+    // Fake de login instellingen zodat het meer op een normale speler lijkt
+    viewDistance: 'tiny',
+    colorsEnabled: true,
   });
 
-  // Microsoft Login Link opvangen (Belangrijk voor nieuwe accounts!)
+  // Microsoft Code opvangen
   bot.on('msa', (data) => {
-    console.log(`\n[!] ACTIE VEREIST voor ${cleanEmail}:`);
+    console.log(`\n[!] LOGIN VEREIST VOOR: ${cleanEmail}`);
     console.log(`[!] Ga naar: https://microsoft.com/link`);
-    console.log(`[!] Voer deze code in: ${data.user_code}\n`);
+    console.log(`[!] Code: ${data.user_code}\n`);
   });
 
   bot.on('login', () => {
-    console.log(`✅ [${cleanEmail}] Succesvol ingelogd!`);
+    console.log(`✅ [${cleanEmail}] Ingelogd bij Microsoft.`);
   });
 
   bot.on('spawn', () => {
-    console.log(`🎮 [${cleanEmail}] In-game gespawned!`);
-    // Anti-AFK: Spring elke 60 seconden
-    setInterval(() => {
-        if (bot.entity) bot.setControlState('jump', true);
-        setTimeout(() => { if (bot.entity) bot.setControlState('jump', false); }, 500);
-    }, 60000);
+    console.log(`🎮 [${cleanEmail}] Succesvol op de server gespawned!`);
+    // Wacht 2 seconden en spring dan even om te laten zien dat je er bent
+    setTimeout(() => { bot.setControlState('jump', true); setTimeout(() => bot.setControlState('jump', false), 500); }, 2000);
   });
 
   bot.on('error', (err) => {
-    console.log(`❌ [${cleanEmail}] Fout: ${err.message}`);
+    console.log(`❌ [${cleanEmail}] Error: ${err.message}`);
   });
 
   bot.on('end', (reason) => {
-    console.log(`⚠️ [${cleanEmail}] Verbinding verbroken (${reason}). Herstart over 30s...`);
-    setTimeout(() => startBot(cleanEmail), 30000);
+    console.log(`⚠️ [${cleanEmail}] Verbinding verbroken: ${reason}`);
+    
+    // Belangrijk: Als de server ons weigert (socketClosed), wacht dan LANGER voordat we opnieuw proberen.
+    // Anders ziet de server het als een aanval en word je IP-geband.
+    const retryTime = reason === 'socketClosed' ? 60000 : 30000;
+    console.log(`[${cleanEmail}] Opnieuw proberen over ${retryTime/1000} seconden...`);
+    setTimeout(() => startBot(cleanEmail), retryTime);
   });
 
   bots[cleanEmail] = bot;
 }
 
-// Start alle accounts met een vertraging van 15 seconden tussen elk account
-// Dit voorkomt dat Microsoft of de server je direct blokkeert
+// Start de bots met een flinke pauze ertussen (30 seconden)
+// Dit is cruciaal om socketClosed errors te voorkomen!
 accountList.forEach((email, index) => {
   setTimeout(() => {
     startBot(email);
-  }, index * 15000); 
+  }, index * 30000); 
 });
